@@ -17,7 +17,7 @@ SCOPES = ['https://www.googleapis.com/auth/calendar']
 DURACAO_PADRAO_MIN = 60
 
 # --- Configuração do Fundo ---
-BACKGROUND_IMAGE_URL = "https://i.ibb.co/rK42GP6m/background.jpg"
+BACKGROUND_IMAGE_URL = "https://i.ibb.co/KJmcWqV/background.jpg"
 
 def set_background(image_url):
     st.markdown(
@@ -271,4 +271,5 @@ with tab_consultar:
                 st.markdown('</div>', unsafe_allow_html=True)
     except Exception as e:
         st.markdown(f'<div class="dark-box"><p>Erro ao buscar agendamentos: {e}</p></div>', unsafe_allow_html=True)
+
 
