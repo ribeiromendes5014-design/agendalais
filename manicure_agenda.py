@@ -24,15 +24,20 @@ def get_google_calendar_service():
     """Autentica na API do Google Calendar usando os secrets."""
     try:
         service_account_info = st.secrets["google_service_account"]
-        
-        if isinstance(service_account_info, str):
+
+        # Garante que é dict (Streamlit já entrega como dict quando usamos [google_service_account] no TOML)
+        if not isinstance(service_account_info, dict):
             service_account_info = json.loads(service_account_info)
-            
-        creds = service_account.Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+
+        creds = service_account.Credentials.from_service_account_info(
+            dict(service_account_info), scopes=SCOPES
+        )
         return build('calendar', 'v3', credentials=creds)
+
     except Exception as e:
         st.error(f"Erro de autenticação com o Google. Verifique o ficheiro 'secrets.toml'. Detalhes: {e}")
         return None
+
 
 def criar_evento_google_calendar(service, info_evento):
     """Cria o evento no Google Calendar da manicure."""
@@ -192,4 +197,5 @@ with tab_consultar:
 
     except HttpError as error:
         st.error(f"Não foi possível buscar os agendamentos do Google Calendar. Erro: {error}")
+
 
