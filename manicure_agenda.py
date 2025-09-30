@@ -37,46 +37,29 @@ def set_background(image_url):
         [data-testid="stAppViewContainer"] > .main .block-container {{
             position: relative;
             z-index: 1;
-            background-color: rgba(255, 255, 255, 0.0); /* transparente */
-            border-radius: 15px;
-            padding: 2rem;
+            background-color: rgba(255, 255, 255, 0.0);
         }}
         [data-testid="stHeader"], [data-testid="stTabs"] {{
             background: transparent;
         }}
-        [data-testid="stExpander"] {{
-            background-color: rgba(240, 242, 246, 0.90);
-            border-radius: 10px;
-        }}
-        /* Caixa escura reaproveitável */
         .dark-box {{
-            background-color: rgba(0, 0, 0, 0.5);
-            padding: 1rem 1.5rem;
-            border-radius: 15px;
-            margin-top: 1rem;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 1rem;
+            border-radius: 12px;
             margin-bottom: 1rem;
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            color: #fff !important;
+            border: 1px solid rgba(255,255,255,0.2);
         }}
         .dark-box * {{
-            color: #fff !important;
+            color: white !important;
         }}
-        /* Caixa de serviços cadastrados */
         .service-list-container {{
-            background-color: rgba(0, 0, 0, 0.4);
-            padding: 1.5rem;
-            border-radius: 15px;
             margin-top: 1rem;
-            border: 1px solid rgba(255, 255, 255, 0.18);
-        }}
-        .service-list-container * {{
-            color: #FFFFFF !important;
         }}
         [data-testid="stExpander"] * {{
-            color: #000000 !important;
+             color: #000000 !important;
         }}
         [data-testid="stInfo"] {{
-            background-color: rgba(0, 0, 0, 0.4) !important;
+            background-color: rgba(0, 0, 0, 0.6) !important;
             border: 1px solid rgba(255, 255, 255, 0.18) !important;
             border-radius: 10px;
         }}
@@ -89,7 +72,6 @@ def set_background(image_url):
     )
 
 # --- Funções de Gestão de Dados com GitHub ---
-
 @st.cache_resource
 def get_github_repo():
     try:
@@ -120,10 +102,8 @@ def salvar_dados_github(repo, path, df, commit_message):
     if repo is None:
         st.error("Não foi possível salvar. A conexão com o GitHub falhou.")
         return
-
     st.info("A preparar para salvar os dados no GitHub...")
     csv_string = df.to_csv(index=False)
-
     try:
         contents = repo.get_contents(path)
         st.info(f"Ficheiro '{path}' encontrado. A tentar atualizar...")
@@ -138,14 +118,14 @@ def salvar_dados_github(repo, path, df, commit_message):
     except Exception as e:
         st.error(f"Ocorreu um erro DETALHADO ao salvar no GitHub:")
         st.exception(e)
-
     st.cache_data.clear()
 
 # --- Funções do Google Calendar ---
 def get_google_calendar_service():
     try:
         service_account_info = st.secrets["google_service_account"]
-        if hasattr(service_account_info, "to_dict"): service_account_info = service_account_info.to_dict()
+        if hasattr(service_account_info, "to_dict"): 
+            service_account_info = service_account_info.to_dict()
         creds = service_account.Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
         return build('calendar', 'v3', credentials=creds)
     except Exception as e:
@@ -168,24 +148,25 @@ def criar_evento_google_calendar(service, info_evento):
         st.error(f"Não foi possível criar o evento no Google Calendar. Erro: {error}")
         return False
 
-# --- Interface do Aplicativo ---
+# --- Interface ---
 st.set_page_config(page_title="Agenda de Manicure", layout="centered")
 set_background(BACKGROUND_IMAGE_URL)
 st.title("💅 Agenda da Manicure")
 
-if 'editing_service_index' not in st.session_state: st.session_state.editing_service_index = None
-if 'deleting_service_index' not in st.session_state: st.session_state.deleting_service_index = None
+if 'editing_service_index' not in st.session_state: 
+    st.session_state.editing_service_index = None
+if 'deleting_service_index' not in st.session_state: 
+    st.session_state.deleting_service_index = None
 
 google_service = get_google_calendar_service()
 repo_github = get_github_repo()
-
 if not google_service or not repo_github:
     st.warning("Aguardando conexão com o Google Calendar e/ou GitHub...")
     st.stop()
 
 tab_agendar, tab_servicos, tab_consultar = st.tabs(["➕ Agendar", "✨ Serviços", "🗓️ Agenda"])
 
-# --- Aba de Gestão de Serviços ---
+# --- Aba Serviços ---
 with tab_servicos:
     st.markdown('<div class="dark-box"><h2>✨ Gestão de Serviços</h2></div>', unsafe_allow_html=True)
     github_path_servicos = st.secrets["github"]["path"]
@@ -193,7 +174,7 @@ with tab_servicos:
 
     if st.session_state.editing_service_index is not None:
         with st.form("form_edit_servico"):
-            st.markdown('<div class="dark-box"><h3>✏️ Editando Serviço</h3></div>', unsafe_allow_html=True)
+            st.markdown('<div class="dark-box"><h3>✏️ Editando Serviço</h3>', unsafe_allow_html=True)
             idx = st.session_state.editing_service_index
             servico_atual = df_servicos.iloc[idx]
             novo_nome = st.text_input("Nome", value=servico_atual['Nome'])
@@ -208,6 +189,7 @@ with tab_servicos:
             if c2.form_submit_button("Cancelar", use_container_width=True):
                 st.session_state.editing_service_index = None
                 st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 
     with st.expander("Adicionar Novo Serviço", expanded=True):
         with st.form("form_add_servico", clear_on_submit=True):
@@ -222,75 +204,65 @@ with tab_servicos:
                 else:
                     st.error("Preencha todos os campos.")
 
-    st.markdown("""
-        <div class="dark-box" style="text-align:center;">
-            <h3>Serviços Cadastrados</h3>
-        </div>
-    """, unsafe_allow_html=True)
-
+    st.markdown('<div class="dark-box" style="text-align:center;"><h3>Serviços Cadastrados</h3></div>', unsafe_allow_html=True)
     st.markdown('<div class="service-list-container">', unsafe_allow_html=True)
 
-if not df_servicos.empty:
-    for index, row in df_servicos.iterrows():
-        st.markdown('<div class="dark-box">', unsafe_allow_html=True)  # <<< CAIXA ESCURA PARA CADA SERVIÇO
-        if st.session_state.deleting_service_index == index:
-            st.warning(f"**Remover '{row['Nome']}'?**")
-            c1, c2 = st.columns(2)
-            if c1.button("Sim, remover!", key=f"del_{index}", type="primary", use_container_width=True):
-                df_servicos = df_servicos.drop(index).reset_index(drop=True)
-                salvar_dados_github(repo_github, github_path_servicos, df_servicos, f"Remove serviço: {row['Nome']}")
-                st.session_state.deleting_service_index = None
-                st.rerun()
-            if c2.button("Cancelar", key=f"cancel_del_{index}", use_container_width=True):
-                st.session_state.deleting_service_index = None
-                st.rerun()
-        else:
-            c1, c2, c3 = st.columns([4, 1, 1])
-            c1.markdown(f"**{row['Nome']}**")
-            c1.caption(f"R$ {row['Valor']:.2f}")
-            if c2.button("✏️", key=f"edit_{index}", help="Editar"):
-                st.session_state.editing_service_index = index
-                st.rerun()
-            if c3.button("🗑️", key=f"del_btn_{index}", help="Remover"):
-                st.session_state.deleting_service_index = index
-                st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)  # <<< FECHA A CAIXA ESCURA
-else:
-    st.info("Ainda não há serviços cadastrados.")
+    if not df_servicos.empty:
+        for index, row in df_servicos.iterrows():
+            st.markdown('<div class="dark-box">', unsafe_allow_html=True)
+            if st.session_state.deleting_service_index == index:
+                st.warning(f"**Remover '{row['Nome']}'?**")
+                c1, c2 = st.columns(2)
+                if c1.button("Sim, remover!", key=f"del_{index}", type="primary", use_container_width=True):
+                    df_servicos = df_servicos.drop(index).reset_index(drop=True)
+                    salvar_dados_github(repo_github, github_path_servicos, df_servicos, f"Remove serviço: {row['Nome']}")
+                    st.session_state.deleting_service_index = None
+                    st.rerun()
+                if c2.button("Cancelar", key=f"cancel_del_{index}", use_container_width=True):
+                    st.session_state.deleting_service_index = None
+                    st.rerun()
+            else:
+                c1, c2, c3 = st.columns([4, 1, 1])
+                c1.markdown(f"**{row['Nome']}**")
+                c1.caption(f"R$ {row['Valor']:.2f}")
+                if c2.button("✏️", key=f"edit_{index}", help="Editar"):
+                    st.session_state.editing_service_index = index
+                    st.rerun()
+                if c3.button("🗑️", key=f"del_btn_{index}", help="Remover"):
+                    st.session_state.deleting_service_index = index
+                    st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="dark-box"><p>Ainda não há serviços cadastrados.</p></div>', unsafe_allow_html=True)
 
-st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-
-# --- Aba de Agendamento ---
+# --- Aba Agendamento ---
 with tab_agendar:
     st.markdown('<div class="dark-box"><h2>➕ Novo Agendamento</h2></div>', unsafe_allow_html=True)
     df_servicos_agenda = carregar_dados_github(st.secrets["github"]["path"], colunas=['Nome', 'Valor'])
-
     if not df_servicos_agenda.empty:
         df_servicos_agenda['Duração (min)'] = DURACAO_PADRAO_MIN
-    
     if df_servicos_agenda.empty:
-        st.info("⚠️ Primeiro, adicione pelo menos um serviço na aba '✨ Serviços'.")
+        st.markdown('<div class="dark-box"><p>⚠️ Primeiro, adicione pelo menos um serviço na aba "✨ Serviços".</p></div>', unsafe_allow_html=True)
     else:
         with st.form("form_agendamento"):
+            st.markdown('<div class="dark-box">', unsafe_allow_html=True)
             cliente = st.text_input("👤 Nome da Cliente")
             servicos_nomes = st.multiselect("💅 Serviços Desejados", options=df_servicos_agenda['Nome'].tolist())
             c1, c2 = st.columns(2)
             data = c1.date_input("🗓️ Data")
             hora = c2.time_input("⏰ Horário")
-
             if servicos_nomes:
                 info_servicos = df_servicos_agenda[df_servicos_agenda['Nome'].isin(servicos_nomes)]
                 valor_total = info_servicos['Valor'].sum()
                 duracao_total = info_servicos['Duração (min)'].sum()
                 st.info(f"Valor Total: R$ {valor_total:.2f}")
-            
             if st.form_submit_button("Confirmar Agendamento", type="primary", use_container_width=True):
                 if cliente and servicos_nomes and data and hora:
                     info_servicos = df_servicos_agenda[df_servicos_agenda['Nome'].isin(servicos_nomes)]
                     valor_total = info_servicos['Valor'].sum()
                     duracao_total = info_servicos['Duração (min)'].sum()
-
                     inicio = datetime.combine(data, hora)
                     fim = inicio + timedelta(minutes=int(duracao_total))
                     nomes_str = ", ".join(servicos_nomes)
@@ -300,8 +272,9 @@ with tab_agendar:
                             st.success(f"Agendamento para {cliente} confirmado!")
                 else:
                     st.error("Preencha todos os campos.")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Aba de Consulta ---
+# --- Aba Consulta ---
 with tab_consultar:
     st.markdown('<div class="dark-box"><h2>🗓️ Próximos Compromissos</h2></div>', unsafe_allow_html=True)
     try:
@@ -309,13 +282,13 @@ with tab_consultar:
         events_result = google_service.events().list(calendarId=CALENDAR_ID, timeMin=now, maxResults=15, singleEvents=True, orderBy='startTime').execute()
         eventos = events_result.get('items', [])
         if not eventos:
-            st.info("Nenhum compromisso futuro encontrado.")
+            st.markdown('<div class="dark-box"><p>Nenhum compromisso futuro encontrado.</p></div>', unsafe_allow_html=True)
         else:
             for evento in eventos:
                 inicio = pd.to_datetime(evento['start'].get('dateTime')).tz_convert(TIMEZONE)
-                with st.container(border=True):
-                    st.markdown(f"**{evento['summary']}**")
-                    st.write(f"🗓️ {inicio.strftime('%d de %B, %Y às %H:%M')}")
+                st.markdown('<div class="dark-box">', unsafe_allow_html=True)
+                st.markdown(f"**{evento['summary']}**")
+                st.write(f"🗓️ {inicio.strftime('%d de %B, %Y às %H:%M')}")
+                st.markdown('</div>', unsafe_allow_html=True)
     except Exception as e:
-        st.error(f"Não foi possível buscar os agendamentos. Erro: {e}")
-
+        st.markdown(f'<div class="dark-box"><p>Não foi possível buscar os agendamentos. Erro: {e}</p></div>', unsafe_allow_html=True)
