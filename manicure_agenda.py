@@ -10,8 +10,10 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 # --- Configurações Essenciais ---
-# ATENÇÃO: Coloque aqui o ID do e-mail do Google Calendar da manicure
-CALENDAR_ID = "manicurelais96@gmail.com" 
+# ⬇️ PASSO 1: SUBSTITUA A LINHA ABAIXO PELO E-MAIL DO CALENDÁRIO DA MANICURE ⬇️
+CALENDAR_ID = "COLOQUE_O_EMAIL_DO_CALENDARIO_AQUI" 
+# Exemplo: CALENDAR_ID = "nomedamanicure@gmail.com"
+
 ARQUIVO_SERVICOS_CSV = "servicos_manicure.csv"
 ARQUIVO_AGENDAMENTOS_CSV = "agendamentos_manicure.csv"
 TIMEZONE = 'America/Sao_Paulo'
@@ -23,8 +25,6 @@ def get_google_calendar_service():
     try:
         service_account_info = st.secrets["google_service_account"]
         
-        # --- CORREÇÃO APLICADA AQUI ---
-        # Garante que as credenciais estão no formato de dicionário
         if isinstance(service_account_info, str):
             service_account_info = json.loads(service_account_info)
             
@@ -192,5 +192,4 @@ with tab_consultar:
 
     except HttpError as error:
         st.error(f"Não foi possível buscar os agendamentos do Google Calendar. Erro: {error}")
-
 
