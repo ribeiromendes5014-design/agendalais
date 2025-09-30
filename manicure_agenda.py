@@ -9,8 +9,15 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from github import Github, UnknownObjectException
 
+# --- Configurações Essenciais ---
+CALENDAR_ID = "manicurelais96@gmail.com"
+ARQUIVO_AGENDAMENTOS_CSV = "agendamentos_manicure.csv"
+TIMEZONE = 'America/Sao_Paulo'
+SCOPES = ['https://www.googleapis.com/auth/calendar']
+DURACAO_PADRAO_MIN = 60 # Duração padrão para todos os serviços
+
 # --- Configuração do Fundo (Link direto da imagem) ---
-BACKGROUND_IMAGE_URL = "https://i.ibb.co/rK42GP6m/background.jpg"
+BACKGROUND_IMAGE_URL = "https://i.ibb.co/cWJpWGm/background.jpg"
 
 def set_background(image_url):
     st.markdown(
@@ -46,16 +53,6 @@ def set_background(image_url):
         """,
         unsafe_allow_html=True
     )
-
-
-
-
-# --- Configurações Essenciais ---
-CALENDAR_ID = "manicurelais96@gmail.com"
-ARQUIVO_AGENDAMENTOS_CSV = "agendamentos_manicure.csv"
-TIMEZONE = 'America/Sao_Paulo'
-SCOPES = ['https://www.googleapis.com/auth/calendar']
-DURACAO_PADRAO_MIN = 60 # Duração padrão para todos os serviços
 
 # --- Funções de Gestão de Dados com GitHub ---
 
@@ -142,7 +139,9 @@ def criar_evento_google_calendar(service, info_evento):
 
 # --- Interface do Aplicativo ---
 st.set_page_config(page_title="Agenda de Manicure", layout="centered")
+set_background(BACKGROUND_IMAGE_URL) # Adiciona o fundo aqui
 st.title("💅 Agenda da Manicure")
+
 
 if 'editing_service_index' not in st.session_state: st.session_state.editing_service_index = None
 if 'deleting_service_index' not in st.session_state: st.session_state.deleting_service_index = None
@@ -285,5 +284,4 @@ with tab_consultar:
                     st.write(f"🗓️ {inicio.strftime('%d de %B, %Y às %H:%M')}")
     except Exception as e:
         st.error(f"Não foi possível buscar os agendamentos. Erro: {e}")
-
 
