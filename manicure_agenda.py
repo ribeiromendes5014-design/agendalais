@@ -20,6 +20,7 @@ DURACAO_PADRAO_MIN = 60 # Duração padrão para todos os serviços
 BACKGROUND_IMAGE_URL = "https://i.ibb.co/rK42GP6m/background.jpg"
 
 def set_background(image_url):
+    # ATENÇÃO: A funcionalidade de modo escuro foi removida para garantir a visibilidade da imagem.
     st.markdown(
         f"""
         <style>
@@ -33,15 +34,13 @@ def set_background(image_url):
             background-position: center;
             filter: blur(8px);
             -webkit-filter: blur(8px);
-            z-index: -1; /* Coloca a imagem atrás de todo o conteúdo */
+            z-index: -1;
         }}
         [data-testid="stAppViewContainer"] > .main {{
             background-color: transparent;
         }}
 
         /* --- Unificar Cabeçalho e Conteúdo num Cartão Único --- */
-        
-        /* Estilo do Cabeçalho (onde o título fica) */
         [data-testid="stHeader"] {{
             background-color: rgba(255, 255, 255, 0.85);
             border-top-left-radius: 15px;
@@ -51,7 +50,6 @@ def set_background(image_url):
             z-index: 1;
         }}
 
-        /* Estilo do Conteúdo Principal (onde as abas ficam) */
         [data-testid="stAppViewContainer"] > .main .block-container {{
             position: relative;
             z-index: 1;
@@ -60,25 +58,15 @@ def set_background(image_url):
             border-bottom-right-radius: 15px;
             padding: 1rem 2rem 2rem 2rem;
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            margin-top: -1px; /* Puxa para cima para fundir com o header */
+            margin-top: -1px;
         }}
 
         [data-testid="stTabs"] {{
-            background: transparent; /* Mantém o fundo das abas transparente */
+            background: transparent;
         }}
         [data-testid="stExpander"] {{
             background-color: rgba(240, 242, 246, 0.90);
             border-radius: 10px;
-        }}
-
-        /* --- Estilos para o Tema Escuro --- */
-        html[data-theme="dark"] [data-testid="stHeader"],
-        html[data-theme="dark"] [data-testid="stAppViewContainer"] > .main .block-container {{
-            background-color: rgba(20, 20, 35, 0.85);
-            color: #FAFAFA;
-        }}
-        html[data-theme="dark"] [data-testid="stExpander"] {{
-            background-color: rgba(40, 40, 55, 0.90);
         }}
         </style>
         """,
