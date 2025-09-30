@@ -14,9 +14,9 @@ CALENDAR_ID = "manicurelais96@gmail.com"
 ARQUIVO_AGENDAMENTOS_CSV = "agendamentos_manicure.csv"
 TIMEZONE = 'America/Sao_Paulo'
 SCOPES = ['https://www.googleapis.com/auth/calendar']
-DURACAO_PADRAO_MIN = 60 # Duração padrão para todos os serviços
+DURACAO_PADRAO_MIN = 60
 
-# --- Configuração do Fundo (Link direto da imagem) ---
+# --- Configuração do Fundo ---
 BACKGROUND_IMAGE_URL = "https://i.ibb.co/rK42GP6m/background.jpg"
 
 def set_background(image_url):
@@ -52,26 +52,12 @@ def set_background(image_url):
         .dark-box * {{
             color: white !important;
         }}
-        .service-list-container {{
-            margin-top: 1rem;
-        }}
-        [data-testid="stExpander"] * {{
-             color: #000000 !important;
-        }}
-        [data-testid="stInfo"] {{
-            background-color: rgba(0, 0, 0, 0.6) !important;
-            border: 1px solid rgba(255, 255, 255, 0.18) !important;
-            border-radius: 10px;
-        }}
-        [data-testid="stInfo"] * {{
-            color: #FFFFFF !important;
-        }}
         </style>
         """,
         unsafe_allow_html=True
     )
 
-# --- Funções de Gestão de Dados com GitHub ---
+# --- Funções GitHub ---
 @st.cache_resource
 def get_github_repo():
     try:
@@ -79,14 +65,13 @@ def get_github_repo():
         g = Github(github_secrets["token"])
         return g.get_repo(github_secrets["repo"])
     except Exception as e:
-        st.error(f"Erro ao conectar com o repositório do GitHub. Verifique o secrets.toml. Detalhes: {e}")
+        st.error(f"Erro ao conectar com o GitHub. Detalhes: {e}")
         return None
 
 @st.cache_data(ttl=30)
 def carregar_dados_github(path, colunas):
     repo = get_github_repo()
     if repo is None:
-        st.warning("Não foi possível carregar os dados. Conexão com o GitHub falhou.")
         return pd.DataFrame(columns=colunas)
     try:
         file_content = repo.get_contents(path)
@@ -95,32 +80,24 @@ def carregar_dados_github(path, colunas):
     except UnknownObjectException:
         return pd.DataFrame(columns=colunas)
     except Exception as e:
-        st.error(f"Erro ao carregar dados do GitHub: {e}")
+        st.error(f"Erro ao carregar dados: {e}")
         return pd.DataFrame(columns=colunas)
 
 def salvar_dados_github(repo, path, df, commit_message):
     if repo is None:
-        st.error("Não foi possível salvar. A conexão com o GitHub falhou.")
+        st.error("Falha ao salvar no GitHub.")
         return
-    st.info("A preparar para salvar os dados no GitHub...")
     csv_string = df.to_csv(index=False)
     try:
         contents = repo.get_contents(path)
-        st.info(f"Ficheiro '{path}' encontrado. A tentar atualizar...")
         repo.update_file(contents.path, commit_message, csv_string, contents.sha)
-        st.success("Dados atualizados com sucesso no GitHub!")
-        st.balloons()
     except UnknownObjectException:
-        st.info(f"Ficheiro '{path}' não encontrado. A tentar criar...")
         repo.create_file(path, commit_message, csv_string)
-        st.success("Ficheiro criado e dados salvos com sucesso no GitHub!")
-        st.balloons()
     except Exception as e:
-        st.error(f"Ocorreu um erro DETALHADO ao salvar no GitHub:")
-        st.exception(e)
+        st.error(f"Erro ao salvar no GitHub: {e}")
     st.cache_data.clear()
 
-# --- Funções do Google Calendar ---
+# --- Google Calendar ---
 def get_google_calendar_service():
     try:
         service_account_info = st.secrets["google_service_account"]
@@ -129,7 +106,7 @@ def get_google_calendar_service():
         creds = service_account.Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
         return build('calendar', 'v3', credentials=creds)
     except Exception as e:
-        st.error(f"Erro de autenticação com o Google. Detalhes: {e}")
+        st.error(f"Erro Google: {e}")
         return None
 
 def criar_evento_google_calendar(service, info_evento):
@@ -145,7 +122,7 @@ def criar_evento_google_calendar(service, info_evento):
         service.events().insert(calendarId=CALENDAR_ID, body=evento_body).execute()
         return True
     except HttpError as error:
-        st.error(f"Não foi possível criar o evento no Google Calendar. Erro: {error}")
+        st.error(f"Erro ao criar evento: {error}")
         return False
 
 # --- Interface ---
@@ -161,7 +138,7 @@ if 'deleting_service_index' not in st.session_state:
 google_service = get_google_calendar_service()
 repo_github = get_github_repo()
 if not google_service or not repo_github:
-    st.warning("Aguardando conexão com o Google Calendar e/ou GitHub...")
+    st.warning("Aguardando conexão com o Google Calendar e GitHub...")
     st.stop()
 
 tab_agendar, tab_servicos, tab_consultar = st.tabs(["➕ Agendar", "✨ Serviços", "🗓️ Agenda"])
@@ -205,7 +182,6 @@ with tab_servicos:
                     st.error("Preencha todos os campos.")
 
     st.markdown('<div class="dark-box" style="text-align:center;"><h3>Serviços Cadastrados</h3></div>', unsafe_allow_html=True)
-    st.markdown('<div class="service-list-container">', unsafe_allow_html=True)
 
     if not df_servicos.empty:
         for index, row in df_servicos.iterrows():
@@ -223,8 +199,8 @@ with tab_servicos:
                     st.rerun()
             else:
                 c1, c2, c3 = st.columns([4, 1, 1])
-                c1.markdown(f"**{row['Nome']}**")
-                c1.caption(f"R$ {row['Valor']:.2f}")
+                c1.markdown(f"<span style='color:white; font-weight:bold;'>{row['Nome']}</span>", unsafe_allow_html=True)
+                c1.markdown(f"<span style='color:white;'>R$ {row['Valor']:.2f}</span>", unsafe_allow_html=True)
                 if c2.button("✏️", key=f"edit_{index}", help="Editar"):
                     st.session_state.editing_service_index = index
                     st.rerun()
@@ -234,8 +210,6 @@ with tab_servicos:
             st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.markdown('<div class="dark-box"><p>Ainda não há serviços cadastrados.</p></div>', unsafe_allow_html=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Aba Agendamento ---
 with tab_agendar:
@@ -257,7 +231,7 @@ with tab_agendar:
                 info_servicos = df_servicos_agenda[df_servicos_agenda['Nome'].isin(servicos_nomes)]
                 valor_total = info_servicos['Valor'].sum()
                 duracao_total = info_servicos['Duração (min)'].sum()
-                st.info(f"Valor Total: R$ {valor_total:.2f}")
+                st.markdown(f"<p style='color:white;'>Valor Total: R$ {valor_total:.2f}</p>", unsafe_allow_html=True)
             if st.form_submit_button("Confirmar Agendamento", type="primary", use_container_width=True):
                 if cliente and servicos_nomes and data and hora:
                     info_servicos = df_servicos_agenda[df_servicos_agenda['Nome'].isin(servicos_nomes)]
@@ -267,7 +241,7 @@ with tab_agendar:
                     fim = inicio + timedelta(minutes=int(duracao_total))
                     nomes_str = ", ".join(servicos_nomes)
                     evento = {"cliente_nome": cliente, "servico_nome": nomes_str, "valor_total": valor_total, "inicio": inicio, "fim": fim}
-                    with st.spinner("A registar na agenda..."):
+                    with st.spinner("Registrando na agenda..."):
                         if criar_evento_google_calendar(google_service, evento):
                             st.success(f"Agendamento para {cliente} confirmado!")
                 else:
@@ -287,8 +261,8 @@ with tab_consultar:
             for evento in eventos:
                 inicio = pd.to_datetime(evento['start'].get('dateTime')).tz_convert(TIMEZONE)
                 st.markdown('<div class="dark-box">', unsafe_allow_html=True)
-                st.markdown(f"**{evento['summary']}**")
-                st.write(f"🗓️ {inicio.strftime('%d de %B, %Y às %H:%M')}")
+                st.markdown(f"<p style='color:white; font-weight:bold;'>{evento['summary']}</p>", unsafe_allow_html=True)
+                st.markdown(f"<p style='color:white;'>🗓️ {inicio.strftime('%d de %B, %Y às %H:%M')}</p>", unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
     except Exception as e:
-        st.markdown(f'<div class="dark-box"><p>Não foi possível buscar os agendamentos. Erro: {e}</p></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="dark-box"><p>Erro ao buscar agendamentos: {e}</p></div>', unsafe_allow_html=True)
