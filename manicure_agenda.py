@@ -14,6 +14,7 @@ CALENDAR_ID = "manicurelais96@gmail.com"
 ARQUIVO_AGENDAMENTOS_CSV = "agendamentos_manicure.csv"
 TIMEZONE = 'America/Sao_Paulo'
 SCOPES = ['https://www.googleapis.com/auth/calendar']
+DURACAO_PADRAO_MIN = 60 # NOVO: Duração padrão para todos os serviços
 
 # --- Funções de Gestão de Dados com GitHub ---
 
@@ -28,11 +29,9 @@ def get_github_repo():
         st.error(f"Erro ao conectar com o repositório do GitHub. Verifique o secrets.toml. Detalhes: {e}")
         return None
 
-# CORREÇÃO: Removido o argumento 'repo' da função para evitar o erro de cache.
 @st.cache_data(ttl=30)
 def carregar_dados_github(path, colunas):
     """Carrega o arquivo CSV do GitHub ou cria um DataFrame vazio."""
-    # A função que obtém o repo agora é chamada aqui dentro.
     repo = get_github_repo()
     if repo is None:
         st.warning("Não foi possível carregar os dados. Conexão com o GitHub falhou.")
@@ -108,7 +107,7 @@ if 'editing_service_index' not in st.session_state: st.session_state.editing_ser
 if 'deleting_service_index' not in st.session_state: st.session_state.deleting_service_index = None
 
 google_service = get_google_calendar_service()
-repo_github = get_github_repo() # Ainda obtemos o repo aqui para a função de SALVAR
+repo_github = get_github_repo()
 
 if not google_service or not repo_github:
     st.warning("Aguardando conexão com o Google Calendar e/ou GitHub...")
@@ -120,7 +119,6 @@ tab_agendar, tab_servicos, tab_consultar = st.tabs(["➕ Agendar", "✨ Serviço
 with tab_servicos:
     st.header("✨ Gestão de Serviços")
     github_path_servicos = st.secrets["github"]["path"]
-    # CORREÇÃO: Chamada da função atualizada, sem passar 'repo_github'
     df_servicos = carregar_dados_github(github_path_servicos, colunas=['Nome', 'Valor', 'Duração (min)'])
 
     if st.session_state.editing_service_index is not None:
@@ -130,12 +128,12 @@ with tab_servicos:
             servico_atual = df_servicos.iloc[idx]
             novo_nome = st.text_input("Nome", value=servico_atual['Nome'])
             novo_valor = st.number_input("Valor (R$)", min_value=0.0, format="%.2f", value=float(servico_atual['Valor']))
-            nova_duracao = st.number_input("Duração (min)", min_value=15, step=5, value=int(servico_atual['Duração (min)']))
+            # REMOVIDO: Campo de duração da edição
             c1, c2 = st.columns(2)
             if c1.form_submit_button("Salvar", type="primary", use_container_width=True):
                 df_servicos.at[idx, 'Nome'] = novo_nome
                 df_servicos.at[idx, 'Valor'] = novo_valor
-                df_servicos.at[idx, 'Duração (min)'] = nova_duracao
+                # A duração não é alterada, mantém-se a que já existia (padrão)
                 salvar_dados_github(repo_github, github_path_servicos, df_servicos, f"Atualiza serviço: {novo_nome}")
                 st.session_state.editing_service_index = None
                 st.rerun()
@@ -147,10 +145,11 @@ with tab_servicos:
         with st.form("form_add_servico", clear_on_submit=True):
             nome = st.text_input("Nome do Serviço")
             valor = st.number_input("Valor (R$)", min_value=0.0, format="%.2f")
-            duracao = st.number_input("Duração (em minutos)", min_value=15, step=5)
+            # REMOVIDO: Campo de duração da adição
             if st.form_submit_button("Adicionar", type="primary"):
-                if nome and valor > 0 and duracao > 0:
-                    nova_linha = pd.DataFrame([{'Nome': nome, 'Valor': valor, 'Duração (min)': duracao}])
+                if nome and valor > 0:
+                    # ALTERADO: Adiciona a duração padrão automaticamente
+                    nova_linha = pd.DataFrame([{'Nome': nome, 'Valor': valor, 'Duração (min)': DURACAO_PADRAO_MIN}])
                     df_servicos = pd.concat([df_servicos, nova_linha], ignore_index=True)
                     salvar_dados_github(repo_github, github_path_servicos, df_servicos, f"Adiciona serviço: {nome}")
                     st.rerun()
@@ -176,7 +175,8 @@ with tab_servicos:
                 else:
                     c1, c2, c3 = st.columns([4, 1, 1])
                     c1.markdown(f"**{row['Nome']}**")
-                    c1.caption(f"R$ {row['Valor']:.2f} | {row['Duração (min)']} min")
+                    # ALTERADO: Remove a duração da visualização
+                    c1.caption(f"R$ {row['Valor']:.2f}")
                     if c2.button("✏️", key=f"edit_{index}", help="Editar"):
                         st.session_state.editing_service_index = index
                         st.rerun()
@@ -189,7 +189,6 @@ with tab_servicos:
 # --- Aba de Agendamento ---
 with tab_agendar:
     st.header("➕ Novo Agendamento")
-    # CORREÇÃO: Chamada da função atualizada, sem passar 'repo_github'
     df_servicos_agenda = carregar_dados_github(st.secrets["github"]["path"], colunas=['Nome', 'Valor', 'Duração (min)'])
     if df_servicos_agenda.empty:
         st.warning("⚠️ Primeiro, adicione pelo menos um serviço na aba '✨ Serviços'.")
@@ -204,7 +203,8 @@ with tab_agendar:
                 info_servicos = df_servicos_agenda[df_servicos_agenda['Nome'].isin(servicos_nomes)]
                 valor_total = info_servicos['Valor'].sum()
                 duracao_total = info_servicos['Duração (min)'].sum()
-                st.info(f"Valor Total: R$ {valor_total:.2f} | Duração Total: {duracao_total} minutos")
+                # ALTERADO: Remove a duração da visualização do resumo
+                st.info(f"Valor Total: R$ {valor_total:.2f}")
             if st.form_submit_button("Confirmar Agendamento", type="primary", use_container_width=True):
                 if cliente and servicos_nomes and data and hora:
                     inicio = datetime.combine(data, hora)
