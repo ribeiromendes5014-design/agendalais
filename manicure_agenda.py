@@ -32,15 +32,14 @@ def set_background(image_url):
             background-position: center;
             filter: blur(8px);
             -webkit-filter: blur(8px);
-            z-index: 0; /* fundo */
+            z-index: 0;
         }}
         [data-testid="stAppViewContainer"] > .main .block-container {{
             position: relative;
-            z-index: 1; /* fica por cima do blur */
-            background-color: rgba(255, 255, 255, 0.85);
+            z-index: 1;
+            background-color: rgba(255, 255, 255, 0.0); /* transparente */
             border-radius: 15px;
             padding: 2rem;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
         }}
         [data-testid="stHeader"], [data-testid="stTabs"] {{
             background: transparent;
@@ -49,22 +48,33 @@ def set_background(image_url):
             background-color: rgba(240, 242, 246, 0.90);
             border-radius: 10px;
         }}
+        /* Caixa escura reaproveitável */
+        .dark-box {{
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 1rem 1.5rem;
+            border-radius: 15px;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            color: #fff !important;
+        }}
+        .dark-box * {{
+            color: #fff !important;
+        }}
+        /* Caixa de serviços cadastrados */
         .service-list-container {{
-            background-color: rgba(0, 0, 0, 0.4); /* Fundo escuro semi-transparente */
+            background-color: rgba(0, 0, 0, 0.4);
             padding: 1.5rem;
             border-radius: 15px;
             margin-top: 1rem;
             border: 1px solid rgba(255, 255, 255, 0.18);
         }}
-        /* Força a cor do texto para BRANCO dentro da lista de serviços */
         .service-list-container * {{
             color: #FFFFFF !important;
         }}
-        /* Força a cor do texto para PRETO dentro da caixa de adicionar serviço */
         [data-testid="stExpander"] * {{
-             color: #000000 !important;
+            color: #000000 !important;
         }}
-        /* NOVO: Estiliza a caixa de informação (Valor Total) para ter fundo escuro e texto branco */
         [data-testid="stInfo"] {{
             background-color: rgba(0, 0, 0, 0.4) !important;
             border: 1px solid rgba(255, 255, 255, 0.18) !important;
@@ -82,7 +92,6 @@ def set_background(image_url):
 
 @st.cache_resource
 def get_github_repo():
-    """Autentica no GitHub e retorna o objeto do repositório."""
     try:
         github_secrets = st.secrets["github"]
         g = Github(github_secrets["token"])
@@ -93,7 +102,6 @@ def get_github_repo():
 
 @st.cache_data(ttl=30)
 def carregar_dados_github(path, colunas):
-    """Carrega o arquivo CSV do GitHub ou cria um DataFrame vazio."""
     repo = get_github_repo()
     if repo is None:
         st.warning("Não foi possível carregar os dados. Conexão com o GitHub falhou.")
@@ -109,7 +117,6 @@ def carregar_dados_github(path, colunas):
         return pd.DataFrame(columns=colunas)
 
 def salvar_dados_github(repo, path, df, commit_message):
-    """Salva o DataFrame como um arquivo CSV no GitHub com mensagens de depuração."""
     if repo is None:
         st.error("Não foi possível salvar. A conexão com o GitHub falhou.")
         return
@@ -134,7 +141,7 @@ def salvar_dados_github(repo, path, df, commit_message):
 
     st.cache_data.clear()
 
-# --- Funções do Google Calendar (sem alterações) ---
+# --- Funções do Google Calendar ---
 def get_google_calendar_service():
     try:
         service_account_info = st.secrets["google_service_account"]
@@ -163,9 +170,8 @@ def criar_evento_google_calendar(service, info_evento):
 
 # --- Interface do Aplicativo ---
 st.set_page_config(page_title="Agenda de Manicure", layout="centered")
-set_background(BACKGROUND_IMAGE_URL) # Adiciona o fundo aqui
+set_background(BACKGROUND_IMAGE_URL)
 st.title("💅 Agenda da Manicure")
-
 
 if 'editing_service_index' not in st.session_state: st.session_state.editing_service_index = None
 if 'deleting_service_index' not in st.session_state: st.session_state.deleting_service_index = None
@@ -181,13 +187,13 @@ tab_agendar, tab_servicos, tab_consultar = st.tabs(["➕ Agendar", "✨ Serviço
 
 # --- Aba de Gestão de Serviços ---
 with tab_servicos:
-    st.header("✨ Gestão de Serviços")
+    st.markdown('<div class="dark-box"><h2>✨ Gestão de Serviços</h2></div>', unsafe_allow_html=True)
     github_path_servicos = st.secrets["github"]["path"]
     df_servicos = carregar_dados_github(github_path_servicos, colunas=['Nome', 'Valor'])
 
     if st.session_state.editing_service_index is not None:
         with st.form("form_edit_servico"):
-            st.subheader("✏️ Editando Serviço")
+            st.markdown('<div class="dark-box"><h3>✏️ Editando Serviço</h3></div>', unsafe_allow_html=True)
             idx = st.session_state.editing_service_index
             servico_atual = df_servicos.iloc[idx]
             novo_nome = st.text_input("Nome", value=servico_atual['Nome'])
@@ -216,18 +222,13 @@ with tab_servicos:
                 else:
                     st.error("Preencha todos os campos.")
 
-    st.markdown("---")
-    
-    # Caixa escura para o título
     st.markdown("""
-        <div class="service-list-container" style="margin-bottom: 1rem; text-align: center;">
-            <h3 style="color: white; margin: 0;">Serviços Cadastrados</h3>
+        <div class="dark-box" style="text-align:center;">
+            <h3>Serviços Cadastrados</h3>
         </div>
     """, unsafe_allow_html=True)
 
-    # Abre a caixa da lista
     st.markdown('<div class="service-list-container">', unsafe_allow_html=True)
-
     if not df_servicos.empty:
         for index, row in df_servicos.iterrows():
             with st.container(border=True):
@@ -254,20 +255,18 @@ with tab_servicos:
                         st.rerun()
     else:
         st.info("Ainda não há serviços cadastrados.")
-        
     st.markdown('</div>', unsafe_allow_html=True)
-
 
 # --- Aba de Agendamento ---
 with tab_agendar:
-    st.header("➕ Novo Agendamento")
+    st.markdown('<div class="dark-box"><h2>➕ Novo Agendamento</h2></div>', unsafe_allow_html=True)
     df_servicos_agenda = carregar_dados_github(st.secrets["github"]["path"], colunas=['Nome', 'Valor'])
 
     if not df_servicos_agenda.empty:
         df_servicos_agenda['Duração (min)'] = DURACAO_PADRAO_MIN
     
     if df_servicos_agenda.empty:
-        st.warning("⚠️ Primeiro, adicione pelo menos um serviço na aba '✨ Serviços'.")
+        st.info("⚠️ Primeiro, adicione pelo menos um serviço na aba '✨ Serviços'.")
     else:
         with st.form("form_agendamento"):
             cliente = st.text_input("👤 Nome da Cliente")
@@ -300,7 +299,7 @@ with tab_agendar:
 
 # --- Aba de Consulta ---
 with tab_consultar:
-    st.header("🗓️ Próximos Compromissos")
+    st.markdown('<div class="dark-box"><h2>🗓️ Próximos Compromissos</h2></div>', unsafe_allow_html=True)
     try:
         now = datetime.now(pytz.timezone(TIMEZONE)).isoformat()
         events_result = google_service.events().list(calendarId=CALENDAR_ID, timeMin=now, maxResults=15, singleEvents=True, orderBy='startTime').execute()
