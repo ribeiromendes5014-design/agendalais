@@ -218,10 +218,15 @@ with tab_servicos:
 
     st.markdown("---")
     
+    # Caixa escura para o título
+    st.markdown("""
+        <div class="service-list-container" style="margin-bottom: 1rem; text-align: center;">
+            <h3 style="color: white; margin: 0;">Serviços Cadastrados</h3>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Abre a caixa da lista
     st.markdown('<div class="service-list-container">', unsafe_allow_html=True)
-    
-    # Título corrigido: branco dentro da caixa
-    st.markdown('<h3 style="color: white; margin-top:0;">Serviços Cadastrados</h3>', unsafe_allow_html=True)
 
     if not df_servicos.empty:
         for index, row in df_servicos.iterrows():
