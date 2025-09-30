@@ -49,6 +49,13 @@ def set_background(image_url):
             background-color: rgba(240, 242, 246, 0.90);
             border-radius: 10px;
         }}
+        /* ALTERAÇÃO: Adicionado estilo para a caixa da lista de serviços */
+        .service-list-container {{
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 1.5rem;
+            border-radius: 15px;
+            margin-top: 1rem;
+        }}
         </style>
         """,
         unsafe_allow_html=True
@@ -159,6 +166,7 @@ tab_agendar, tab_servicos, tab_consultar = st.tabs(["➕ Agendar", "✨ Serviço
 with tab_servicos:
     st.header("✨ Gestão de Serviços")
     github_path_servicos = st.secrets["github"]["path"]
+    # ALTERADO: O ficheiro CSV agora só tem Nome e Valor
     df_servicos = carregar_dados_github(github_path_servicos, colunas=['Nome', 'Valor'])
 
     if st.session_state.editing_service_index is not None:
@@ -185,6 +193,7 @@ with tab_servicos:
             valor = st.number_input("Valor (R$)", min_value=0.0, format="%.2f")
             if st.form_submit_button("Adicionar", type="primary"):
                 if nome and valor > 0:
+                    # ALTERADO: Cria a linha apenas com Nome e Valor para salvar no CSV
                     nova_linha = pd.DataFrame([{'Nome': nome, 'Valor': valor}])
                     df_servicos = pd.concat([df_servicos, nova_linha], ignore_index=True)
                     salvar_dados_github(repo_github, github_path_servicos, df_servicos, f"Adiciona serviço: {nome}")
@@ -193,6 +202,10 @@ with tab_servicos:
                     st.error("Preencha todos os campos.")
 
     st.markdown("---")
+    
+    # ALTERAÇÃO: Adicionando a caixa branca para a lista de serviços
+    st.markdown('<div class="service-list-container">', unsafe_allow_html=True)
+    
     st.subheader("Serviços Cadastrados")
     if not df_servicos.empty:
         for index, row in df_servicos.iterrows():
@@ -220,12 +233,17 @@ with tab_servicos:
                         st.rerun()
     else:
         st.info("Ainda não há serviços cadastrados.")
+        
+    st.markdown('</div>', unsafe_allow_html=True)
+
 
 # --- Aba de Agendamento ---
 with tab_agendar:
     st.header("➕ Novo Agendamento")
+    # Carrega os dados do CSV (apenas Nome e Valor)
     df_servicos_agenda = carregar_dados_github(st.secrets["github"]["path"], colunas=['Nome', 'Valor'])
 
+    # ALTERADO: Adiciona a coluna de duração padrão em memória para o cálculo do agendamento
     if not df_servicos_agenda.empty:
         df_servicos_agenda['Duração (min)'] = DURACAO_PADRAO_MIN
     
@@ -242,10 +260,13 @@ with tab_agendar:
             if servicos_nomes:
                 info_servicos = df_servicos_agenda[df_servicos_agenda['Nome'].isin(servicos_nomes)]
                 valor_total = info_servicos['Valor'].sum()
+                # O cálculo da duração total continua a funcionar porque adicionámos a coluna em memória
+                duracao_total = info_servicos['Duração (min)'].sum()
                 st.info(f"Valor Total: R$ {valor_total:.2f}")
             
             if st.form_submit_button("Confirmar Agendamento", type="primary", use_container_width=True):
                 if cliente and servicos_nomes and data and hora:
+                    # Recalcula a duração para garantir que está correta antes de criar o evento
                     info_servicos = df_servicos_agenda[df_servicos_agenda['Nome'].isin(servicos_nomes)]
                     valor_total = info_servicos['Valor'].sum()
                     duracao_total = info_servicos['Duração (min)'].sum()
@@ -277,5 +298,3 @@ with tab_consultar:
                     st.write(f"🗓️ {inicio.strftime('%d de %B, %Y às %H:%M')}")
     except Exception as e:
         st.error(f"Não foi possível buscar os agendamentos. Erro: {e}")
-
-
