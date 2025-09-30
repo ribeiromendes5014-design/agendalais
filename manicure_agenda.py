@@ -9,6 +9,47 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from github import Github, UnknownObjectException
 
+# --- Configuração do Fundo (Link direto da imagem) ---
+BACKGROUND_IMAGE_URL = "https://i.ibb.co/rK42GP6m/background.jpg"
+
+def set_background(image_url):
+    st.markdown(
+        f"""
+        <style>
+        .stApp::before {{
+            content: "";
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("{image_url}");
+            background-size: cover;
+            background-position: center;
+            filter: blur(8px);
+            -webkit-filter: blur(8px);
+            z-index: 0; /* fundo */
+        }}
+        [data-testid="stAppViewContainer"] > .main .block-container {{
+            position: relative;
+            z-index: 1; /* fica por cima do blur */
+            background-color: rgba(255, 255, 255, 0.85);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }}
+        [data-testid="stHeader"], [data-testid="stTabs"] {{
+            background: transparent;
+        }}
+        [data-testid="stExpander"] {{
+            background-color: rgba(240, 242, 246, 0.90);
+            border-radius: 10px;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+
+
 # --- Configurações Essenciais ---
 CALENDAR_ID = "manicurelais96@gmail.com"
 ARQUIVO_AGENDAMENTOS_CSV = "agendamentos_manicure.csv"
@@ -244,4 +285,5 @@ with tab_consultar:
                     st.write(f"🗓️ {inicio.strftime('%d de %B, %Y às %H:%M')}")
     except Exception as e:
         st.error(f"Não foi possível buscar os agendamentos. Erro: {e}")
+
 
