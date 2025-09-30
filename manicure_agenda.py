@@ -17,14 +17,12 @@ SCOPES = ['https://www.googleapis.com/auth/calendar']
 DURACAO_PADRAO_MIN = 60 # Duração padrão para todos os serviços
 
 # --- Configuração do Fundo (Link direto da imagem) ---
-# ATUALIZADO: Novo URL da imagem e função de estilo corrigida
 BACKGROUND_IMAGE_URL = "https://i.ibb.co/rK42GP6m/background.jpg"
 
 def set_background(image_url):
     st.markdown(
         f"""
         <style>
-        /* --- Imagem de Fundo Geral --- */
         .stApp::before {{
             content: "";
             position: fixed;
@@ -34,39 +32,22 @@ def set_background(image_url):
             background-position: center;
             filter: blur(8px);
             -webkit-filter: blur(8px);
-            z-index: -1; /* Coloca a imagem atrás de todo o conteúdo */
+            z-index: 0; /* fundo */
         }}
-
-        /* --- Estilos para o Tema Claro (Padrão) --- */
         [data-testid="stAppViewContainer"] > .main .block-container {{
             position: relative;
-            background-color: rgba(255, 255, 255, 0.85); /* Fundo branco semi-transparente */
-            color: #31333F; /* Texto escuro */
+            z-index: 1; /* fica por cima do blur */
+            background-color: rgba(255, 255, 255, 0.85);
             border-radius: 15px;
             padding: 2rem;
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
         }}
-        [data-testid="stExpander"] {{
-            background-color: rgba(240, 242, 246, 0.90);
-            border-radius: 10px;
-        }}
-
-        /* --- Estilos para o Tema Escuro --- */
-        html[data-theme="dark"] [data-testid="stAppViewContainer"] > .main .block-container {{
-            background-color: rgba(20, 20, 35, 0.85); /* Fundo escuro semi-transparente */
-            color: #FAFAFA; /* Texto claro */
-        }}
-        html[data-theme="dark"] [data-testid="stExpander"] {{
-            background-color: rgba(40, 40, 55, 0.90);
-        }}
-        
-        /* --- Ajustes Gerais para ambos os temas --- */
         [data-testid="stHeader"], [data-testid="stTabs"] {{
             background: transparent;
         }}
-        /* CORREÇÃO: Garante que o fundo principal do Streamlit é transparente para a imagem aparecer */
-        [data-testid="stAppViewContainer"] > .main {{
-            background-color: transparent;
+        [data-testid="stExpander"] {{
+            background-color: rgba(240, 242, 246, 0.90);
+            border-radius: 10px;
         }}
         </style>
         """,
@@ -178,6 +159,7 @@ tab_agendar, tab_servicos, tab_consultar = st.tabs(["➕ Agendar", "✨ Serviço
 with tab_servicos:
     st.header("✨ Gestão de Serviços")
     github_path_servicos = st.secrets["github"]["path"]
+    # ALTERADO: O ficheiro CSV agora só tem Nome e Valor
     df_servicos = carregar_dados_github(github_path_servicos, colunas=['Nome', 'Valor'])
 
     if st.session_state.editing_service_index is not None:
@@ -204,6 +186,7 @@ with tab_servicos:
             valor = st.number_input("Valor (R$)", min_value=0.0, format="%.2f")
             if st.form_submit_button("Adicionar", type="primary"):
                 if nome and valor > 0:
+                    # ALTERADO: Cria a linha apenas com Nome e Valor para salvar no CSV
                     nova_linha = pd.DataFrame([{'Nome': nome, 'Valor': valor}])
                     df_servicos = pd.concat([df_servicos, nova_linha], ignore_index=True)
                     salvar_dados_github(repo_github, github_path_servicos, df_servicos, f"Adiciona serviço: {nome}")
@@ -243,8 +226,10 @@ with tab_servicos:
 # --- Aba de Agendamento ---
 with tab_agendar:
     st.header("➕ Novo Agendamento")
+    # Carrega os dados do CSV (apenas Nome e Valor)
     df_servicos_agenda = carregar_dados_github(st.secrets["github"]["path"], colunas=['Nome', 'Valor'])
 
+    # ALTERADO: Adiciona a coluna de duração padrão em memória para o cálculo do agendamento
     if not df_servicos_agenda.empty:
         df_servicos_agenda['Duração (min)'] = DURACAO_PADRAO_MIN
     
@@ -261,10 +246,13 @@ with tab_agendar:
             if servicos_nomes:
                 info_servicos = df_servicos_agenda[df_servicos_agenda['Nome'].isin(servicos_nomes)]
                 valor_total = info_servicos['Valor'].sum()
+                # O cálculo da duração total continua a funcionar porque adicionámos a coluna em memória
+                duracao_total = info_servicos['Duração (min)'].sum()
                 st.info(f"Valor Total: R$ {valor_total:.2f}")
             
             if st.form_submit_button("Confirmar Agendamento", type="primary", use_container_width=True):
                 if cliente and servicos_nomes and data and hora:
+                    # Recalcula a duração para garantir que está correta antes de criar o evento
                     info_servicos = df_servicos_agenda[df_servicos_agenda['Nome'].isin(servicos_nomes)]
                     valor_total = info_servicos['Valor'].sum()
                     duracao_total = info_servicos['Duração (min)'].sum()
