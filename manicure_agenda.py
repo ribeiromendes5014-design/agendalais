@@ -220,7 +220,9 @@ with tab_servicos:
     
     st.markdown('<div class="service-list-container">', unsafe_allow_html=True)
     
-    st.subheader("Serviços Cadastrados")
+    # Título corrigido: branco dentro da caixa
+    st.markdown('<h3 style="color: white; margin-top:0;">Serviços Cadastrados</h3>', unsafe_allow_html=True)
+
     if not df_servicos.empty:
         for index, row in df_servicos.iterrows():
             with st.container(border=True):
@@ -308,4 +310,3 @@ with tab_consultar:
                     st.write(f"🗓️ {inicio.strftime('%d de %B, %Y às %H:%M')}")
     except Exception as e:
         st.error(f"Não foi possível buscar os agendamentos. Erro: {e}")
-
