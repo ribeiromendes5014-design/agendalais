@@ -17,7 +17,7 @@ SCOPES = ['https://www.googleapis.com/auth/calendar']
 DURACAO_PADRAO_MIN = 60 # Duração padrão para todos os serviços
 
 # --- Configuração do Fundo (Link direto da imagem) ---
-BACKGROUND_IMAGE_URL = "https://i.ibb.co/cWJpWGm/background.jpg"
+BACKGROUND_IMAGE_URL = "https://i.ibb.co/rK42GP6m/background.jpg"
 
 def set_background(image_url):
     st.markdown(
@@ -284,4 +284,5 @@ with tab_consultar:
                     st.write(f"🗓️ {inicio.strftime('%d de %B, %Y às %H:%M')}")
     except Exception as e:
         st.error(f"Não foi possível buscar os agendamentos. Erro: {e}")
+
 
