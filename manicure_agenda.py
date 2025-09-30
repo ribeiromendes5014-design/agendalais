@@ -25,14 +25,14 @@ def get_google_calendar_service():
     try:
         service_account_info = st.secrets["google_service_account"]
 
-        # Garante que é dict (Streamlit já entrega como dict quando usamos [google_service_account] no TOML)
-        if not isinstance(service_account_info, dict):
-            service_account_info = json.loads(service_account_info)
+        # Se já for dicionário/AttrDict, não precisa fazer json.loads()
+        if hasattr(service_account_info, "to_dict"):  
+            service_account_info = service_account_info.to_dict()
 
         creds = service_account.Credentials.from_service_account_info(
-            dict(service_account_info), scopes=SCOPES
+            service_account_info, scopes=SCOPES
         )
-        return build('calendar', 'v3', credentials=creds)
+        return build("calendar", "v3", credentials=creds)
 
     except Exception as e:
         st.error(f"Erro de autenticação com o Google. Verifique o ficheiro 'secrets.toml'. Detalhes: {e}")
@@ -197,5 +197,6 @@ with tab_consultar:
 
     except HttpError as error:
         st.error(f"Não foi possível buscar os agendamentos do Google Calendar. Erro: {error}")
+
 
 
