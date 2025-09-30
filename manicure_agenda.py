@@ -20,11 +20,9 @@ DURACAO_PADRAO_MIN = 60 # Duração padrão para todos os serviços
 BACKGROUND_IMAGE_URL = "https://i.ibb.co/rK42GP6m/background.jpg"
 
 def set_background(image_url):
-    # ATENÇÃO: A funcionalidade de modo escuro foi removida para garantir a visibilidade da imagem.
     st.markdown(
         f"""
         <style>
-        /* --- Imagem de Fundo Geral --- */
         .stApp::before {{
             content: "";
             position: fixed;
@@ -34,34 +32,17 @@ def set_background(image_url):
             background-position: center;
             filter: blur(8px);
             -webkit-filter: blur(8px);
-            z-index: -1;
+            z-index: 0; /* fundo */
         }}
-        [data-testid="stAppViewContainer"] > .main {{
-            background-color: transparent;
-        }}
-
-        /* --- Unificar Cabeçalho e Conteúdo num Cartão Único --- */
-        [data-testid="stHeader"] {{
-            background-color: rgba(255, 255, 255, 0.85);
-            border-top-left-radius: 15px;
-            border-top-right-radius: 15px;
-            padding: 1rem 2rem 0 2rem;
-            position: relative;
-            z-index: 1;
-        }}
-
         [data-testid="stAppViewContainer"] > .main .block-container {{
             position: relative;
-            z-index: 1;
+            z-index: 1; /* fica por cima do blur */
             background-color: rgba(255, 255, 255, 0.85);
-            border-bottom-left-radius: 15px;
-            border-bottom-right-radius: 15px;
-            padding: 1rem 2rem 2rem 2rem;
+            border-radius: 15px;
+            padding: 2rem;
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            margin-top: -1px;
         }}
-
-        [data-testid="stTabs"] {{
+        [data-testid="stHeader"], [data-testid="stTabs"] {{
             background: transparent;
         }}
         [data-testid="stExpander"] {{
@@ -296,4 +277,5 @@ with tab_consultar:
                     st.write(f"🗓️ {inicio.strftime('%d de %B, %Y às %H:%M')}")
     except Exception as e:
         st.error(f"Não foi possível buscar os agendamentos. Erro: {e}")
+
 
