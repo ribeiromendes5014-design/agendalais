@@ -50,14 +50,19 @@ def set_background(image_url):
             border-radius: 10px;
         }}
         .service-list-container {{
-            background-color: rgba(255, 255, 255, 0.95);
+            background-color: rgba(0, 0, 0, 0.4); /* Fundo escuro semi-transparente */
             padding: 1.5rem;
             border-radius: 15px;
             margin-top: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.18);
         }}
-        /* ALTERAÇÃO: Força a cor do texto para preto dentro da lista de serviços */
+        /* ALTERAÇÃO: Força a cor do texto para BRANCO dentro da lista de serviços */
         .service-list-container * {{
-            color: #000000 !important;
+            color: #FFFFFF !important;
+        }}
+        /* NOVO: Força a cor do texto para PRETO dentro da caixa de adicionar serviço */
+        [data-testid="stExpander"] * {{
+             color: #000000 !important;
         }}
         </style>
         """,
