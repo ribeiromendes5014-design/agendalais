@@ -11,7 +11,7 @@ from googleapiclient.errors import HttpError
 
 # --- Configurações Essenciais ---
 # ATENÇÃO: Coloque aqui o ID do e-mail do Google Calendar da manicure
-CALENDAR_ID = "COLOQUE_O_EMAIL_DO_CALENDARIO_AQUI" 
+CALENDAR_ID = "manicurelais96@gmail.com" 
 ARQUIVO_SERVICOS_CSV = "servicos_manicure.csv"
 ARQUIVO_AGENDAMENTOS_CSV = "agendamentos_manicure.csv"
 TIMEZONE = 'America/Sao_Paulo'
@@ -192,4 +192,5 @@ with tab_consultar:
 
     except HttpError as error:
         st.error(f"Não foi possível buscar os agendamentos do Google Calendar. Erro: {error}")
+
 
