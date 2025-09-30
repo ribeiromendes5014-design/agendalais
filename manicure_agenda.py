@@ -229,33 +229,37 @@ with tab_servicos:
     """, unsafe_allow_html=True)
 
     st.markdown('<div class="service-list-container">', unsafe_allow_html=True)
-    if not df_servicos.empty:
-        for index, row in df_servicos.iterrows():
-            with st.container(border=True):
-                if st.session_state.deleting_service_index == index:
-                    st.warning(f"**Remover '{row['Nome']}'?**")
-                    c1, c2 = st.columns(2)
-                    if c1.button("Sim, remover!", key=f"del_{index}", type="primary", use_container_width=True):
-                        df_servicos = df_servicos.drop(index).reset_index(drop=True)
-                        salvar_dados_github(repo_github, github_path_servicos, df_servicos, f"Remove serviço: {row['Nome']}")
-                        st.session_state.deleting_service_index = None
-                        st.rerun()
-                    if c2.button("Cancelar", key=f"cancel_del_{index}", use_container_width=True):
-                        st.session_state.deleting_service_index = None
-                        st.rerun()
-                else:
-                    c1, c2, c3 = st.columns([4, 1, 1])
-                    c1.markdown(f"**{row['Nome']}**")
-                    c1.caption(f"R$ {row['Valor']:.2f}")
-                    if c2.button("✏️", key=f"edit_{index}", help="Editar"):
-                        st.session_state.editing_service_index = index
-                        st.rerun()
-                    if c3.button("🗑️", key=f"del_btn_{index}", help="Remover"):
-                        st.session_state.deleting_service_index = index
-                        st.rerun()
-    else:
-        st.info("Ainda não há serviços cadastrados.")
-    st.markdown('</div>', unsafe_allow_html=True)
+
+if not df_servicos.empty:
+    for index, row in df_servicos.iterrows():
+        st.markdown('<div class="dark-box">', unsafe_allow_html=True)  # <<< CAIXA ESCURA PARA CADA SERVIÇO
+        if st.session_state.deleting_service_index == index:
+            st.warning(f"**Remover '{row['Nome']}'?**")
+            c1, c2 = st.columns(2)
+            if c1.button("Sim, remover!", key=f"del_{index}", type="primary", use_container_width=True):
+                df_servicos = df_servicos.drop(index).reset_index(drop=True)
+                salvar_dados_github(repo_github, github_path_servicos, df_servicos, f"Remove serviço: {row['Nome']}")
+                st.session_state.deleting_service_index = None
+                st.rerun()
+            if c2.button("Cancelar", key=f"cancel_del_{index}", use_container_width=True):
+                st.session_state.deleting_service_index = None
+                st.rerun()
+        else:
+            c1, c2, c3 = st.columns([4, 1, 1])
+            c1.markdown(f"**{row['Nome']}**")
+            c1.caption(f"R$ {row['Valor']:.2f}")
+            if c2.button("✏️", key=f"edit_{index}", help="Editar"):
+                st.session_state.editing_service_index = index
+                st.rerun()
+            if c3.button("🗑️", key=f"del_btn_{index}", help="Remover"):
+                st.session_state.deleting_service_index = index
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)  # <<< FECHA A CAIXA ESCURA
+else:
+    st.info("Ainda não há serviços cadastrados.")
+
+st.markdown('</div>', unsafe_allow_html=True)
+
 
 # --- Aba de Agendamento ---
 with tab_agendar:
@@ -314,3 +318,4 @@ with tab_consultar:
                     st.write(f"🗓️ {inicio.strftime('%d de %B, %Y às %H:%M')}")
     except Exception as e:
         st.error(f"Não foi possível buscar os agendamentos. Erro: {e}")
+
