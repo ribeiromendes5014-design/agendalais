@@ -23,6 +23,7 @@ def set_background(image_url):
     st.markdown(
         f"""
         <style>
+        /* --- Imagem de Fundo Geral --- */
         .stApp::before {{
             content: "";
             position: fixed;
@@ -32,22 +33,36 @@ def set_background(image_url):
             background-position: center;
             filter: blur(8px);
             -webkit-filter: blur(8px);
-            z-index: 0; /* fundo */
+            z-index: -1; /* Coloca a imagem atrás de todo o conteúdo */
         }}
+
+        /* --- Estilos para o Tema Claro (Padrão) --- */
         [data-testid="stAppViewContainer"] > .main .block-container {{
             position: relative;
-            z-index: 1; /* fica por cima do blur */
-            background-color: rgba(255, 255, 255, 0.85);
+            background-color: rgba(255, 255, 255, 0.85); /* Fundo branco semi-transparente */
+            color: #31333F; /* Texto escuro */
             border-radius: 15px;
             padding: 2rem;
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
         }}
-        [data-testid="stHeader"], [data-testid="stTabs"] {{
-            background: transparent;
-        }}
         [data-testid="stExpander"] {{
             background-color: rgba(240, 242, 246, 0.90);
             border-radius: 10px;
+        }}
+
+        /* --- Estilos para o Tema Escuro --- */
+        /* O seletor 'html[data-theme="dark"]' aplica estes estilos apenas quando o tema escuro está ativo */
+        html[data-theme="dark"] [data-testid="stAppViewContainer"] > .main .block-container {{
+            background-color: rgba(20, 20, 35, 0.85); /* Fundo escuro semi-transparente */
+            color: #FAFAFA; /* Texto claro */
+        }}
+        html[data-theme="dark"] [data-testid="stExpander"] {{
+            background-color: rgba(40, 40, 55, 0.90);
+        }}
+        
+        /* --- Ajustes Gerais para ambos os temas --- */
+        [data-testid="stHeader"], [data-testid="stTabs"] {{
+            background: transparent;
         }}
         </style>
         """,
@@ -284,5 +299,4 @@ with tab_consultar:
                     st.write(f"🗓️ {inicio.strftime('%d de %B, %Y às %H:%M')}")
     except Exception as e:
         st.error(f"Não foi possível buscar os agendamentos. Erro: {e}")
-
 
