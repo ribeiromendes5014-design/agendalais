@@ -56,13 +56,22 @@ def set_background(image_url):
             margin-top: 1rem;
             border: 1px solid rgba(255, 255, 255, 0.18);
         }}
-        /* ALTERAÇÃO: Força a cor do texto para BRANCO dentro da lista de serviços */
+        /* Força a cor do texto para BRANCO dentro da lista de serviços */
         .service-list-container * {{
             color: #FFFFFF !important;
         }}
-        /* NOVO: Força a cor do texto para PRETO dentro da caixa de adicionar serviço */
+        /* Força a cor do texto para PRETO dentro da caixa de adicionar serviço */
         [data-testid="stExpander"] * {{
              color: #000000 !important;
+        }}
+        /* NOVO: Estiliza a caixa de informação (Valor Total) para ter fundo escuro e texto branco */
+        [data-testid="stInfo"] {{
+            background-color: rgba(0, 0, 0, 0.4) !important;
+            border: 1px solid rgba(255, 255, 255, 0.18) !important;
+            border-radius: 10px;
+        }}
+        [data-testid="stInfo"] * {{
+            color: #FFFFFF !important;
         }}
         </style>
         """,
