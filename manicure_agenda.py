@@ -15,7 +15,7 @@ ARQUIVO_AGENDAMENTOS_CSV = "agendamentos_manicure.csv"
 TIMEZONE = 'America/Sao_Paulo'
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 
-# --- Funções de Gestão de Dados com GitHub (COM DEPURAÇÃO) ---
+# --- Funções de Gestão de Dados com GitHub ---
 
 @st.cache_resource
 def get_github_repo():
@@ -28,10 +28,15 @@ def get_github_repo():
         st.error(f"Erro ao conectar com o repositório do GitHub. Verifique o secrets.toml. Detalhes: {e}")
         return None
 
+# CORREÇÃO: Removido o argumento 'repo' da função para evitar o erro de cache.
 @st.cache_data(ttl=30)
-def carregar_dados_github(repo, path, colunas):
+def carregar_dados_github(path, colunas):
     """Carrega o arquivo CSV do GitHub ou cria um DataFrame vazio."""
-    if repo is None: return pd.DataFrame(columns=colunas)
+    # A função que obtém o repo agora é chamada aqui dentro.
+    repo = get_github_repo()
+    if repo is None:
+        st.warning("Não foi possível carregar os dados. Conexão com o GitHub falhou.")
+        return pd.DataFrame(columns=colunas)
     try:
         file_content = repo.get_contents(path)
         content_str = file_content.decoded_content.decode("utf-8")
@@ -52,25 +57,20 @@ def salvar_dados_github(repo, path, df, commit_message):
     csv_string = df.to_csv(index=False)
 
     try:
-        # Tenta obter o ficheiro para ver se ele já existe
         contents = repo.get_contents(path)
         st.info(f"Ficheiro '{path}' encontrado. A tentar atualizar...")
-        # Se existe, atualiza
         repo.update_file(contents.path, commit_message, csv_string, contents.sha)
         st.success("Dados atualizados com sucesso no GitHub!")
         st.balloons()
     except UnknownObjectException:
-        # Se não existe, cria um novo
         st.info(f"Ficheiro '{path}' não encontrado. A tentar criar...")
         repo.create_file(path, commit_message, csv_string)
         st.success("Ficheiro criado e dados salvos com sucesso no GitHub!")
         st.balloons()
     except Exception as e:
-        # Se ocorrer qualquer outro erro, mostra detalhes
         st.error(f"Ocorreu um erro DETALHADO ao salvar no GitHub:")
         st.exception(e)
 
-    # Limpa o cache para forçar a releitura dos dados atualizados
     st.cache_data.clear()
 
 # --- Funções do Google Calendar (sem alterações) ---
@@ -108,7 +108,7 @@ if 'editing_service_index' not in st.session_state: st.session_state.editing_ser
 if 'deleting_service_index' not in st.session_state: st.session_state.deleting_service_index = None
 
 google_service = get_google_calendar_service()
-repo_github = get_github_repo()
+repo_github = get_github_repo() # Ainda obtemos o repo aqui para a função de SALVAR
 
 if not google_service or not repo_github:
     st.warning("Aguardando conexão com o Google Calendar e/ou GitHub...")
@@ -120,7 +120,8 @@ tab_agendar, tab_servicos, tab_consultar = st.tabs(["➕ Agendar", "✨ Serviço
 with tab_servicos:
     st.header("✨ Gestão de Serviços")
     github_path_servicos = st.secrets["github"]["path"]
-    df_servicos = carregar_dados_github(repo_github, github_path_servicos, colunas=['Nome', 'Valor', 'Duração (min)'])
+    # CORREÇÃO: Chamada da função atualizada, sem passar 'repo_github'
+    df_servicos = carregar_dados_github(github_path_servicos, colunas=['Nome', 'Valor', 'Duração (min)'])
 
     if st.session_state.editing_service_index is not None:
         with st.form("form_edit_servico"):
@@ -188,7 +189,8 @@ with tab_servicos:
 # --- Aba de Agendamento ---
 with tab_agendar:
     st.header("➕ Novo Agendamento")
-    df_servicos_agenda = carregar_dados_github(repo_github, st.secrets["github"]["path"], colunas=['Nome', 'Valor', 'Duração (min)'])
+    # CORREÇÃO: Chamada da função atualizada, sem passar 'repo_github'
+    df_servicos_agenda = carregar_dados_github(st.secrets["github"]["path"], colunas=['Nome', 'Valor', 'Duração (min)'])
     if df_servicos_agenda.empty:
         st.warning("⚠️ Primeiro, adicione pelo menos um serviço na aba '✨ Serviços'.")
     else:
@@ -232,3 +234,4 @@ with tab_consultar:
                     st.write(f"🗓️ {inicio.strftime('%d de %B, %Y às %H:%M')}")
     except Exception as e:
         st.error(f"Não foi possível buscar os agendamentos. Erro: {e}")
+
