@@ -22,6 +22,12 @@ def get_google_calendar_service():
     """Autentica na API do Google Calendar usando os secrets."""
     try:
         service_account_info = st.secrets["google_service_account"]
+        
+        # --- CORREÇÃO APLICADA AQUI ---
+        # Garante que as credenciais estão no formato de dicionário
+        if isinstance(service_account_info, str):
+            service_account_info = json.loads(service_account_info)
+            
         creds = service_account.Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
         return build('calendar', 'v3', credentials=creds)
     except Exception as e:
@@ -186,3 +192,4 @@ with tab_consultar:
 
     except HttpError as error:
         st.error(f"Não foi possível buscar os agendamentos do Google Calendar. Erro: {error}")
+
