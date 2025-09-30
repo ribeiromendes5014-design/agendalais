@@ -1,40 +1,90 @@
 # -*- coding: utf-8 -*-
 import streamlit as st
 import pandas as pd
-import os
+import io
 import pytz
 from datetime import datetime, timedelta
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from github import Github, UnknownObjectException
 
 # --- Configurações Essenciais ---
-# ⬇️ PASSO 1: SUBSTITUA A LINHA ABAIXO PELO E-MAIL DO CALENDÁRIO DA MANICURE ⬇️
 CALENDAR_ID = "manicurelais96@gmail.com"
-# Exemplo: CALENDAR_ID = "nomedamanicure@gmail.com"
-
-ARQUIVO_SERVICOS_CSV = "servicos_manicure.csv"
 ARQUIVO_AGENDAMENTOS_CSV = "agendamentos_manicure.csv"
 TIMEZONE = 'America/Sao_Paulo'
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 
-# --- Funções de Autenticação e API ---
+# --- Funções de Gestão de Dados com GitHub (COM DEPURAÇÃO) ---
+
+@st.cache_resource
+def get_github_repo():
+    """Autentica no GitHub e retorna o objeto do repositório."""
+    try:
+        github_secrets = st.secrets["github"]
+        g = Github(github_secrets["token"])
+        return g.get_repo(github_secrets["repo"])
+    except Exception as e:
+        st.error(f"Erro ao conectar com o repositório do GitHub. Verifique o secrets.toml. Detalhes: {e}")
+        return None
+
+@st.cache_data(ttl=30)
+def carregar_dados_github(repo, path, colunas):
+    """Carrega o arquivo CSV do GitHub ou cria um DataFrame vazio."""
+    if repo is None: return pd.DataFrame(columns=colunas)
+    try:
+        file_content = repo.get_contents(path)
+        content_str = file_content.decoded_content.decode("utf-8")
+        return pd.read_csv(io.StringIO(content_str))
+    except UnknownObjectException:
+        return pd.DataFrame(columns=colunas)
+    except Exception as e:
+        st.error(f"Erro ao carregar dados do GitHub: {e}")
+        return pd.DataFrame(columns=colunas)
+
+def salvar_dados_github(repo, path, df, commit_message):
+    """Salva o DataFrame como um arquivo CSV no GitHub com mensagens de depuração."""
+    if repo is None:
+        st.error("Não foi possível salvar. A conexão com o GitHub falhou.")
+        return
+
+    st.info("A preparar para salvar os dados no GitHub...")
+    csv_string = df.to_csv(index=False)
+
+    try:
+        # Tenta obter o ficheiro para ver se ele já existe
+        contents = repo.get_contents(path)
+        st.info(f"Ficheiro '{path}' encontrado. A tentar atualizar...")
+        # Se existe, atualiza
+        repo.update_file(contents.path, commit_message, csv_string, contents.sha)
+        st.success("Dados atualizados com sucesso no GitHub!")
+        st.balloons()
+    except UnknownObjectException:
+        # Se não existe, cria um novo
+        st.info(f"Ficheiro '{path}' não encontrado. A tentar criar...")
+        repo.create_file(path, commit_message, csv_string)
+        st.success("Ficheiro criado e dados salvos com sucesso no GitHub!")
+        st.balloons()
+    except Exception as e:
+        # Se ocorrer qualquer outro erro, mostra detalhes
+        st.error(f"Ocorreu um erro DETALHADO ao salvar no GitHub:")
+        st.exception(e)
+
+    # Limpa o cache para forçar a releitura dos dados atualizados
+    st.cache_data.clear()
+
+# --- Funções do Google Calendar (sem alterações) ---
 def get_google_calendar_service():
-    """Autentica na API do Google Calendar usando os secrets."""
     try:
         service_account_info = st.secrets["google_service_account"]
-        if hasattr(service_account_info, "to_dict"):
-            service_account_info = service_account_info.to_dict()
-        if not isinstance(service_account_info, dict):
-            raise ValueError("Configuração inválida em secrets.toml. Deve ser um [google_service_account] com chaves internas.")
+        if hasattr(service_account_info, "to_dict"): service_account_info = service_account_info.to_dict()
         creds = service_account.Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
         return build('calendar', 'v3', credentials=creds)
     except Exception as e:
-        st.error(f"Erro de autenticação com o Google. Verifique o ficheiro 'secrets.toml'. Detalhes: {e}")
+        st.error(f"Erro de autenticação com o Google. Detalhes: {e}")
         return None
 
 def criar_evento_google_calendar(service, info_evento):
-    """Cria o evento no Google Calendar da manicure."""
     tz = pytz.timezone(TIMEZONE)
     evento_body = {
         'summary': f"💅 {info_evento['servico_nome']} - {info_evento['cliente_nome']}",
@@ -50,39 +100,18 @@ def criar_evento_google_calendar(service, info_evento):
         st.error(f"Não foi possível criar o evento no Google Calendar. Erro: {error}")
         return False
 
-# --- Funções de Gestão de Dados (Serviços e Agendamentos) ---
-def carregar_dados(arquivo, colunas):
-    """Carrega um ficheiro CSV ou cria um novo se não existir."""
-    if os.path.exists(arquivo):
-        try:
-            return pd.read_csv(arquivo)
-        except pd.errors.EmptyDataError:
-            return pd.DataFrame(columns=colunas)
-    else:
-        return pd.DataFrame(columns=colunas)
-
-def salvar_dados(df, arquivo):
-    """Salva o DataFrame num ficheiro CSV."""
-    df.to_csv(arquivo, index=False)
-
 # --- Interface do Aplicativo ---
 st.set_page_config(page_title="Agenda de Manicure", layout="centered")
-
 st.title("💅 Agenda da Manicure")
 
-# Inicializar o estado da sessão para edição e exclusão
-if 'editing_service_index' not in st.session_state:
-    st.session_state.editing_service_index = None
-if 'deleting_service_index' not in st.session_state:
-    st.session_state.deleting_service_index = None
+if 'editing_service_index' not in st.session_state: st.session_state.editing_service_index = None
+if 'deleting_service_index' not in st.session_state: st.session_state.deleting_service_index = None
 
-service = get_google_calendar_service()
+google_service = get_google_calendar_service()
+repo_github = get_github_repo()
 
-if not service:
-    st.stop()
-
-if CALENDAR_ID == "COLOQUE_O_EMAIL_DO_CALENDARIO_AQUI":
-    st.error("Atenção: É necessário configurar o CALENDAR_ID no código para que o sistema funcione.")
+if not google_service or not repo_github:
+    st.warning("Aguardando conexão com o Google Calendar e/ou GitHub...")
     st.stop()
 
 tab_agendar, tab_servicos, tab_consultar = st.tabs(["➕ Agendar", "✨ Serviços", "🗓️ Agenda"])
@@ -90,175 +119,116 @@ tab_agendar, tab_servicos, tab_consultar = st.tabs(["➕ Agendar", "✨ Serviço
 # --- Aba de Gestão de Serviços ---
 with tab_servicos:
     st.header("✨ Gestão de Serviços")
-    st.write("Adicione, edite ou remova os serviços que você oferece.")
+    github_path_servicos = st.secrets["github"]["path"]
+    df_servicos = carregar_dados_github(repo_github, github_path_servicos, colunas=['Nome', 'Valor', 'Duração (min)'])
 
-    df_servicos = carregar_dados(ARQUIVO_SERVICOS_CSV, colunas=['Nome', 'Valor', 'Duração (min)'])
-
-    # Formulário para EDITAR um serviço (aparece no topo quando ativado)
     if st.session_state.editing_service_index is not None:
         with st.form("form_edit_servico"):
             st.subheader("✏️ Editando Serviço")
             idx = st.session_state.editing_service_index
             servico_atual = df_servicos.iloc[idx]
-            
-            novo_nome = st.text_input("Nome do Serviço", value=servico_atual['Nome'])
+            novo_nome = st.text_input("Nome", value=servico_atual['Nome'])
             novo_valor = st.number_input("Valor (R$)", min_value=0.0, format="%.2f", value=float(servico_atual['Valor']))
-            nova_duracao = st.number_input("Duração (em minutos)", min_value=15, step=5, value=int(servico_atual['Duração (min)']))
-
-            col1, col2 = st.columns(2)
-            if col1.form_submit_button("Salvar Alterações", type="primary", use_container_width=True):
+            nova_duracao = st.number_input("Duração (min)", min_value=15, step=5, value=int(servico_atual['Duração (min)']))
+            c1, c2 = st.columns(2)
+            if c1.form_submit_button("Salvar", type="primary", use_container_width=True):
                 df_servicos.at[idx, 'Nome'] = novo_nome
                 df_servicos.at[idx, 'Valor'] = novo_valor
                 df_servicos.at[idx, 'Duração (min)'] = nova_duracao
-                salvar_dados(df_servicos, ARQUIVO_SERVICOS_CSV)
-                st.success(f"Serviço '{novo_nome}' atualizado com sucesso!")
+                salvar_dados_github(repo_github, github_path_servicos, df_servicos, f"Atualiza serviço: {novo_nome}")
                 st.session_state.editing_service_index = None
                 st.rerun()
-            
-            if col2.form_submit_button("Cancelar", use_container_width=True):
+            if c2.form_submit_button("Cancelar", use_container_width=True):
                 st.session_state.editing_service_index = None
                 st.rerun()
 
-    # Formulário para ADICIONAR um novo serviço
     with st.expander("Adicionar Novo Serviço", expanded=True):
         with st.form("form_add_servico", clear_on_submit=True):
-            nome_servico = st.text_input("Nome do Serviço (ex: Pé e Mão)")
-            valor_servico = st.number_input("Valor (R$)", min_value=0.0, format="%.2f")
-            duracao_servico = st.number_input("Duração (em minutos)", min_value=15, step=5)
-            
-            if st.form_submit_button("Adicionar Serviço", type="primary"):
-                if nome_servico and valor_servico > 0 and duracao_servico > 0:
-                    nova_linha = pd.DataFrame([{'Nome': nome_servico, 'Valor': valor_servico, 'Duração (min)': duracao_servico}])
+            nome = st.text_input("Nome do Serviço")
+            valor = st.number_input("Valor (R$)", min_value=0.0, format="%.2f")
+            duracao = st.number_input("Duração (em minutos)", min_value=15, step=5)
+            if st.form_submit_button("Adicionar", type="primary"):
+                if nome and valor > 0 and duracao > 0:
+                    nova_linha = pd.DataFrame([{'Nome': nome, 'Valor': valor, 'Duração (min)': duracao}])
                     df_servicos = pd.concat([df_servicos, nova_linha], ignore_index=True)
-                    salvar_dados(df_servicos, ARQUIVO_SERVICOS_CSV)
-                    st.success(f"Serviço '{nome_servico}' adicionado com sucesso!")
+                    salvar_dados_github(repo_github, github_path_servicos, df_servicos, f"Adiciona serviço: {nome}")
                     st.rerun()
                 else:
-                    st.error("Por favor, preencha todos os campos corretamente.")
+                    st.error("Preencha todos os campos.")
 
     st.markdown("---")
     st.subheader("Serviços Cadastrados")
-    
     if not df_servicos.empty:
         for index, row in df_servicos.iterrows():
             with st.container(border=True):
-                # Se o serviço estiver marcado para exclusão, mostra a confirmação
                 if st.session_state.deleting_service_index == index:
-                    st.warning(f"**Tem a certeza que deseja remover o serviço '{row['Nome']}'?**")
-                    col1, col2 = st.columns(2)
-                    if col1.button("Sim, remover!", key=f"confirm_delete_{index}", type="primary", use_container_width=True):
-                        df_servicos = df_servicos.drop(index)
-                        salvar_dados(df_servicos, ARQUIVO_SERVICOS_CSV)
-                        st.success(f"Serviço '{row['Nome']}' removido.")
+                    st.warning(f"**Remover '{row['Nome']}'?**")
+                    c1, c2 = st.columns(2)
+                    if c1.button("Sim, remover!", key=f"del_{index}", type="primary", use_container_width=True):
+                        df_servicos = df_servicos.drop(index).reset_index(drop=True)
+                        salvar_dados_github(repo_github, github_path_servicos, df_servicos, f"Remove serviço: {row['Nome']}")
                         st.session_state.deleting_service_index = None
                         st.rerun()
-                    if col2.button("Cancelar", key=f"cancel_delete_{index}", use_container_width=True):
+                    if c2.button("Cancelar", key=f"cancel_del_{index}", use_container_width=True):
                         st.session_state.deleting_service_index = None
                         st.rerun()
-                # Visualização normal do serviço com botões
                 else:
-                    col1, col2, col3 = st.columns([4, 1, 1])
-                    with col1:
-                        st.markdown(f"**{row['Nome']}**")
-                        st.caption(f"Valor: R$ {row['Valor']:.2f} | Duração: {row['Duração (min)']} min")
-                    with col2:
-                        if st.button("✏️", key=f"edit_{index}", help="Editar serviço"):
-                            st.session_state.editing_service_index = index
-                            st.session_state.deleting_service_index = None
-                            st.rerun()
-                    with col3:
-                        if st.button("🗑️", key=f"delete_{index}", help="Remover serviço"):
-                            st.session_state.deleting_service_index = index
-                            st.session_state.editing_service_index = None
-                            st.rerun()
-
+                    c1, c2, c3 = st.columns([4, 1, 1])
+                    c1.markdown(f"**{row['Nome']}**")
+                    c1.caption(f"R$ {row['Valor']:.2f} | {row['Duração (min)']} min")
+                    if c2.button("✏️", key=f"edit_{index}", help="Editar"):
+                        st.session_state.editing_service_index = index
+                        st.rerun()
+                    if c3.button("🗑️", key=f"del_btn_{index}", help="Remover"):
+                        st.session_state.deleting_service_index = index
+                        st.rerun()
     else:
-        st.info("Ainda não há serviços cadastrados. Adicione um no formulário acima.")
-
+        st.info("Ainda não há serviços cadastrados.")
 
 # --- Aba de Agendamento ---
 with tab_agendar:
     st.header("➕ Novo Agendamento")
-    df_servicos_agenda = carregar_dados(ARQUIVO_SERVICOS_CSV, colunas=['Nome', 'Valor', 'Duração (min)'])
-
+    df_servicos_agenda = carregar_dados_github(repo_github, st.secrets["github"]["path"], colunas=['Nome', 'Valor', 'Duração (min)'])
     if df_servicos_agenda.empty:
-        st.warning("⚠️ Para agendar, primeiro adicione pelo menos um serviço na aba '✨ Serviços'.")
+        st.warning("⚠️ Primeiro, adicione pelo menos um serviço na aba '✨ Serviços'.")
     else:
-        with st.form("form_agendamento", clear_on_submit=False):
+        with st.form("form_agendamento"):
             cliente = st.text_input("👤 Nome da Cliente")
-            
-            servicos_disponiveis = df_servicos_agenda['Nome'].tolist()
-            servicos_selecionados_nomes = st.multiselect(
-                "💅 Serviços Desejados", 
-                options=servicos_disponiveis, 
-                placeholder="Selecione um ou mais serviços..."
-            )
-
-            col1, col2 = st.columns(2)
-            data_agendamento = col1.date_input("🗓️ Data")
-            hora_agendamento = col2.time_input("⏰ Horário")
-            
-            valor_total = 0
-            duracao_total = 0
-            info_servicos = None
-
-            if servicos_selecionados_nomes:
-                info_servicos = df_servicos_agenda[df_servicos_agenda['Nome'].isin(servicos_selecionados_nomes)]
+            servicos_nomes = st.multiselect("💅 Serviços Desejados", options=df_servicos_agenda['Nome'].tolist())
+            c1, c2 = st.columns(2)
+            data = c1.date_input("🗓️ Data")
+            hora = c2.time_input("⏰ Horário")
+            if servicos_nomes:
+                info_servicos = df_servicos_agenda[df_servicos_agenda['Nome'].isin(servicos_nomes)]
                 valor_total = info_servicos['Valor'].sum()
                 duracao_total = info_servicos['Duração (min)'].sum()
                 st.info(f"Valor Total: R$ {valor_total:.2f} | Duração Total: {duracao_total} minutos")
-
             if st.form_submit_button("Confirmar Agendamento", type="primary", use_container_width=True):
-                if cliente and servicos_selecionados_nomes and data_agendamento and hora_agendamento and not info_servicos.empty:
-                    inicio = datetime.combine(data_agendamento, hora_agendamento)
+                if cliente and servicos_nomes and data and hora:
+                    inicio = datetime.combine(data, hora)
                     fim = inicio + timedelta(minutes=int(duracao_total))
-                    
-                    nomes_servicos_str = ", ".join(servicos_selecionados_nomes)
-
-                    info_evento = {
-                        "cliente_nome": cliente,
-                        "servico_nome": nomes_servicos_str,
-                        "valor_total": valor_total,
-                        "inicio": inicio,
-                        "fim": fim
-                    }
-                    
+                    nomes_str = ", ".join(servicos_nomes)
+                    evento = {"cliente_nome": cliente, "servico_nome": nomes_str, "valor_total": valor_total, "inicio": inicio, "fim": fim}
                     with st.spinner("A registar na agenda..."):
-                        sucesso = criar_evento_google_calendar(service, info_evento)
-                    
-                    if sucesso:
-                        st.success(f"Agendamento para {cliente} às {inicio.strftime('%H:%M')} confirmado com sucesso!")
-                        df_agendamentos = carregar_dados(ARQUIVO_AGENDAMENTOS_CSV, colunas=['Cliente', 'Serviço', 'Data e Hora Início', 'Valor'])
-                        novo_agendamento = pd.DataFrame([{'Cliente': cliente, 'Serviço': nomes_servicos_str, 'Data e Hora Início': inicio, 'Valor': valor_total}])
-                        df_agendamentos = pd.concat([df_agendamentos, novo_agendamento], ignore_index=True)
-                        salvar_dados(df_agendamentos, ARQUIVO_AGENDAMENTOS_CSV)
-                        # Limpar campos manualmente, pois clear_on_submit=False
-                        st.session_state.agendamento_realizado = True
+                        if criar_evento_google_calendar(google_service, evento):
+                            st.success(f"Agendamento para {cliente} confirmado!")
                 else:
-                    st.error("Por favor, preencha todos os campos e selecione pelo menos um serviço.")
+                    st.error("Preencha todos os campos.")
 
 # --- Aba de Consulta ---
 with tab_consultar:
     st.header("🗓️ Próximos Compromissos")
-    st.write("Aqui estão os seus próximos agendamentos, direto do Google Calendar.")
-
     try:
         now = datetime.now(pytz.timezone(TIMEZONE)).isoformat()
-        events_result = service.events().list(
-            calendarId=CALENDAR_ID, timeMin=now,
-            maxResults=15, singleEvents=True,
-            orderBy='startTime'
-        ).execute()
+        events_result = google_service.events().list(calendarId=CALENDAR_ID, timeMin=now, maxResults=15, singleEvents=True, orderBy='startTime').execute()
         eventos = events_result.get('items', [])
-
         if not eventos:
-            st.info("Nenhum compromisso futuro encontrado na agenda.")
+            st.info("Nenhum compromisso futuro encontrado.")
         else:
             for evento in eventos:
-                inicio = pd.to_datetime(evento['start'].get('dateTime', evento['start'].get('date'))).tz_convert(TIMEZONE)
+                inicio = pd.to_datetime(evento['start'].get('dateTime')).tz_convert(TIMEZONE)
                 with st.container(border=True):
                     st.markdown(f"**{evento['summary']}**")
                     st.write(f"🗓️ {inicio.strftime('%d de %B, %Y às %H:%M')}")
-
-    except HttpError as error:
-        st.error(f"Não foi possível buscar os agendamentos do Google Calendar. Erro: {error}")
+    except Exception as e:
+        st.error(f"Não foi possível buscar os agendamentos. Erro: {e}")
