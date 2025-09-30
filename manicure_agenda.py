@@ -232,6 +232,7 @@ with tab_agendar:
                 valor_total = info_servicos['Valor'].sum()
                 duracao_total = info_servicos['Duração (min)'].sum()
                 st.markdown(f"<p style='color:white;'>Valor Total: R$ {valor_total:.2f}</p>", unsafe_allow_html=True)
+
             if st.form_submit_button("Confirmar Agendamento", type="primary", use_container_width=True):
                 if cliente and servicos_nomes and data and hora:
                     info_servicos = df_servicos_agenda[df_servicos_agenda['Nome'].isin(servicos_nomes)]
@@ -244,9 +245,13 @@ with tab_agendar:
                     with st.spinner("Registrando na agenda..."):
                         if criar_evento_google_calendar(google_service, evento):
                             st.success(f"Agendamento para {cliente} confirmado!")
+                            # 👉 Salva a aba atual e força recarregar
+                            st.session_state.active_tab = "agendar"
+                            st.rerun()
                 else:
                     st.error("Preencha todos os campos.")
             st.markdown('</div>', unsafe_allow_html=True)
+
 
 # --- Aba Consulta ---
 with tab_consultar:
@@ -266,3 +271,4 @@ with tab_consultar:
                 st.markdown('</div>', unsafe_allow_html=True)
     except Exception as e:
         st.markdown(f'<div class="dark-box"><p>Erro ao buscar agendamentos: {e}</p></div>', unsafe_allow_html=True)
+
